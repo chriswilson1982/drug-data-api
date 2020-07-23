@@ -16,7 +16,7 @@ This API is running on a Heroku dyno at [Ampoule Drug Data API](https://ampoule.
 
 ## A note on barcodes
 
-In the UK, all medical product packs will have an EAN13 or EAN14 barcode, which provides the GTIN. Many packs will also have a 2D data matrix code, which usually encodes the GTIN as well as batch number and expiry date.
+In the UK, all medical product packs will have an EAN13 barcode, which provides the GTIN. Many packs will also have a 2D data matrix code, which usually encodes the GTIN as well as batch number and expiry date.
 
 ## Contact
 
