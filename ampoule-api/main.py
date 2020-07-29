@@ -54,6 +54,7 @@ def get_drug_data(gtin):
         result = json.loads(dumps(query))
     except Exception as error:
         return make_error(f"Error: {str(error)}")
+    
     # If no result, check equivalant GTIN
     if not result:
         # If 13-digit GTIN, try prefixing "0"
@@ -64,8 +65,8 @@ def get_drug_data(gtin):
                 result = json.loads(dumps(query))
             except Exception as error:
                 return make_error(f"Error: {str(error)}")
-        # If 14-digit GTIN with "0" prefix, try without "0"
-        elif len(gtin) == 14 and gtin.startswith("0"):
+        # If 14-digit GTIN, try without first digit
+        elif len(gtin) == 14:
             new_gtin = gtin[1:]
             try:
                 query = col.find_one({"gtin": new_gtin}, {"gtin": 0, "_id": 0})
