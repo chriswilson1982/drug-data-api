@@ -1,6 +1,6 @@
 """Simplify DM+D XML data, link GTIN to AMPP and export as JSON
 
-This script will process Dictionary of Medicines and Devices (DM+D) Actual 
+This script will process Dictionary of Medicines and Devices (DM+D) Actual
 Medicinal Product Pack (AMPP) and Global Trade Indentification Number (GTIN)
 data (XML format) and export it to a JSON array.
 
@@ -85,19 +85,19 @@ with open(GTIN_INPUT) as gtin_file:
     print("Parsing GTIN XML data...")
     doc = minidom.parse(gtin_file)
     item_list = doc.getElementsByTagName("AMPP")
-    
+
     for item in item_list:
 
         # Get AMPPID
         amppid = item.getElementsByTagName("AMPPID")[0].firstChild.data
-        
+
         # Get GTIN and remove duplicate GTINs for this item
         all_gtins = [gtin_element.firstChild.data for gtin_element in item.getElementsByTagName("GTIN")]
         gtins = []
         for item in all_gtins:
             if item not in gtins:
                 gtins.append(item)
-                
+
         # Save this relationship to dict (key: AMPPID, value: List of GTINs)
         for gtin in gtins:
             gtin_ampp_dict[gtin] = amppid
@@ -109,7 +109,7 @@ with open(GTIN_INPUT) as gtin_file:
             else:
                 gtin_ampp_dict[gtin] = [amppid]
             """
-            
+
 
 # Parse XML data to get drug details for AMPPID
 with open(AMPP_INPUT) as ampp_file:
@@ -135,20 +135,20 @@ with open(AMPP_INPUT) as ampp_file:
             for char in word:
                 if char.isdigit():
                     digit = True
-                elif char.isalpha():
+                elif char.isalpha() or char == "%":
                     alpha = True
             if digit and alpha:
                 strength_string = word
                 start_strength_index = nm.index(word)
                 break
-            
+
         # First letter or "%" in strength_string is start of units
         unit_start_index = 0
         for index, char in enumerate(strength_string):
             if char.isalpha() or char == "%":
                 unit_start_index = index
                 break
-            
+
         # Set name
         name = nm[:start_strength_index].strip()
         if name == "":
@@ -156,7 +156,7 @@ with open(AMPP_INPUT) as ampp_file:
                 if char == "(":
                     name = nm[:index].strip()
                     break
-            
+
         # Set strength
         try:
             strength = strength_string[:unit_start_index].strip("()")
@@ -168,7 +168,7 @@ with open(AMPP_INPUT) as ampp_file:
             units = strength_string[unit_start_index:].strip("()")
         except Exception as e:
             units = ""
-            
+
         # Split at last closing parenthesis - after this is quantity and type
         last_section = nm.split(')')[-1]
 
@@ -180,12 +180,23 @@ with open(AMPP_INPUT) as ampp_file:
         except Exception as e:
             quantity = ""
         try:
-            type = last_section.split()[1]
-            if type in ["g", "gram", "ml"] or not type.isalpha():
+            # Get some common types first if they appear in the data
+            lower = nm.lower()
+            type_values = ["suspension", "solution", "liquid", "spray", "cream", "gel", "ointment", "pessary", "inhaler", "capsule", "tablet", "ampoule", "vial"]
+            type = ""
+            for value in type_values:
+                if value in nm:
+                    type = value
+                    # Previously used "break" here, but now skip this as higher-priority types last
+                    # e.g. Situation of having "suspension" in a "vial" -> "vial" is best
+            # Default implementation
+            if type == "":
+                type = last_section.split()[1]
+            if type in ["g", "gram", "ml", "dose", "unit"] or not type.isalpha():
                 raise TypeError
         except Exception as e:
             type = ""
-            
+
         output = { 'name' : name, 'strength' : strength, 'units' : units, 'type' : type, 'quantity' : quantity }
         ampp_drug_dict[amppid] = output
 
