@@ -1,28 +1,23 @@
-"""Ampoule drug data API: Get DM+D drug data for a Global Trade Identification Number (GTIN).
+"""Ampoule drug data API: Get drug data for a submitted Global Trade Identification Number.
 
-Submit a GET request to '/gtin/<GTIN>', where <GTIN> is a EAN13 or EAN14 digit GTIN.
-
-This API queries a MongoDB database populated with modified Actual Medicinal Product Pack (AMPP)
-and Global Trade Identification Number (GTIN) data from the Dictionary of Medicines and Devices
-(DM+D), which is published by NHS Digital and available under an Open Government licence.
-
-The API returns a JSON object including the name, strength, units, type and quanity of the product.
+Submit a GET request to '/gtin/<GTIN>', where <GTIN> is a 13 or 14 digit Global Trade Identification Number. This API queries a MongoDB database and uses modified data from the Dictionary of Medicines and Devices (published by NHS Digital and available under an Open Government licence) to link GTIN to Actual Medicinal Product Pack (AMPP) data. The API returns a JSON object including the name, strength, units, type and quanity of the product, if available.
 
 """
 
 import os
 import pymongo
-from bottle import install, route, get, template, redirect, static_file, error, run
+from bottle import install, route, request, get, post, template, redirect, static_file, error, run
 from bson.json_util import dumps
 import json
 import dns
 
-MONGODB_URI = "<Enter MongoDB URI>"
 
 # MongoDB connection
-mongo = pymongo.MongoClient(MONGODB_URI, maxPoolSize=50, connect=False)
+mongo = pymongo.MongoClient(
+    "mongodb+srv://...", maxPoolSize=50, connect=False)
 db = pymongo.database.Database(mongo, 'ampoule')
 col = pymongo.collection.Collection(db, 'dmd')
+analytics_collection = pymongo.collection.Collection(db, 'analytics')
 
 
 # Function to make standard response
@@ -54,7 +49,6 @@ def get_drug_data(gtin):
         result = json.loads(dumps(query))
     except Exception as error:
         return make_error(f"Error: {str(error)}")
-    
     # If no result, check equivalant GTIN
     if not result:
         # If 13-digit GTIN, try prefixing "0"
