@@ -187,8 +187,6 @@ with open(AMPP_INPUT) as ampp_file:
             for value in type_values:
                 if value in nm:
                     type = value
-                    # Previously used "break" here, but now skip this as higher-priority types last
-                    # e.g. Situation of having "suspension" in a "vial" -> "vial" is best
             # Default implementation
             if type == "":
                 type = last_section.split()[1]
