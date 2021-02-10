@@ -77,9 +77,9 @@ def get_drug_data(gtin):
 
 
 # Handle root url
-@route('/')
-@route('/gtin')
-@route('/gtin/')
+@get('/')
+@get('/gtin')
+@get('/gtin/')
 def handle_root_url():
     return make_response(None, r"Ampoule drug data API. Submit a GET request to '/gtin/<GTIN>', where <GTIN> is a 13 or 14 digit Global Trade Identification Number. This API uses data from the Dictionary of Medicines and Devices (published by NHS Digital and available under an Open Government licence) to link GTIN to Actual Medicinal Product Pack (AMPP) data. Returns JSON object including name, strength, units, type and quanity of the product, if available.")
 
