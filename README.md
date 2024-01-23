@@ -20,4 +20,4 @@ In the UK, all medical product packs will have an EAN13 barcode, which provides 
 
 ## Contact
 
-You can give feedback, suggestions or report bugs here on GitHub or email info@ampoule.io.
+You can give feedback, suggestions or report bugs here on GitHub or email info@ampoule.app.
