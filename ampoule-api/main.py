@@ -166,7 +166,7 @@ def api_test():
 @app.get('/')
 def handle_root_url():
     """Return information response for root URL."""
-    return make_response(None, r"Ampoule drug data API. Submit a GET request to '/api/dmd/gtin/<GTIN> or '/api/fda/ndc/<NDC>', where <GTIN> is a Global Trade Identification Number and NDC is a National Drug Code. This API uses adapted data from the Dictionary of Medicines and Devices (published by NHS Digital and available under an Open Government licence) and data from the Food and Drug Administration (FDA).  Returns a JSON object including the name, strength, units, type and quanity of the drug, if available.")
+    return make_response(None, r"Ampoule drug data API. Submit a GET request to '/api/dmd/gtin/GTIN or '/api/fda/ndc/NDC', where GTIN is a Global Trade Identification Number and NDC is a National Drug Code. This API uses adapted data from the Dictionary of Medicines and Devices (published by NHS Digital and available under an Open Government licence) and data from the Food and Drug Administration (FDA).  Returns a JSON object including the name, strength, units, type and quantity of the drug, if available.")
 
 
 @error(404)
