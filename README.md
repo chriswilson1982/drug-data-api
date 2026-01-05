@@ -8,7 +8,7 @@ The other part of this repository is a Python web app (using the Bottle framewor
 
 ## The API is live on Heroku
 
-This API is running on a Heroku dyno at [Ampoule Drug Data API](https://ampoule.herokuapp.com). The data in the MongoDB database is updated periodically as DM+D updates are released.
+This API is running on a Heroku dyno at [Ampoule Drug Data API](https://api.ampoule.app/v2/). The data in the MongoDB database is updated periodically as DM+D updates are released.
 
 ## What is Ampoule?
 
