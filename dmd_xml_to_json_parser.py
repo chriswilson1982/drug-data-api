@@ -160,13 +160,13 @@ with open(AMPP_INPUT) as ampp_file:
         # Set strength
         try:
             strength = strength_string[:unit_start_index].strip("()")
-        except Exception as e:
+        except Exception:
             strength = ""
 
         # Set units
         try:
             units = strength_string[unit_start_index:].strip("()")
-        except Exception as e:
+        except Exception:
             units = ""
 
         # Split at last closing parenthesis - after this is quantity and type
@@ -177,7 +177,7 @@ with open(AMPP_INPUT) as ampp_file:
             quantity = last_section.split()[0]
             if not quantity.isnumeric():
                 raise TypeError
-        except Exception as e:
+        except Exception:
             quantity = ""
         try:
             # Get some common types first if they appear in the data
@@ -192,7 +192,7 @@ with open(AMPP_INPUT) as ampp_file:
                 type = last_section.split()[1]
             if type in ["g", "gram", "ml", "dose", "unit"] or not type.isalpha():
                 raise TypeError
-        except Exception as e:
+        except Exception:
             type = ""
 
         output = { 'name' : name, 'strength' : strength, 'units' : units, 'type' : type, 'quantity' : quantity }

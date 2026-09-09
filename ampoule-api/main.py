@@ -76,6 +76,36 @@ def insert_zero(value, pos):
     return value[:pos - 1] + "0" + value[pos - 1:]
 
 
+def gtin_candidates(gtin):
+    """Build the list of GTIN values to try, most likely match first.
+
+    Barcode data sometimes has an extra or missing leading zero
+    depending on encoding, so also try the 13/14-digit equivalent.
+    """
+    candidates = [gtin]
+    if len(gtin) == 13:
+        candidates.append("0" + gtin)
+    elif len(gtin) == 14:
+        candidates.append(gtin[1:])
+    return candidates
+
+
+def ndc_candidates(ndc):
+    """Build the list of NDC values to try, most likely match first.
+
+    A 10-digit NDC is missing the leading zero from one of its three
+    segments, so try inserting it in the first or sixth position; an
+    11-digit NDC starting with "0" may just need that zero stripped.
+    """
+    candidates = [ndc]
+    if len(ndc) == 10:
+        candidates.append(insert_zero(ndc, 1))
+        candidates.append(insert_zero(ndc, 6))
+    elif len(ndc) == 11 and ndc[0] == "0":
+        candidates.append(ndc[1:])
+    return candidates
+
+
 # Static javascript
 @app.get('/js/<filename>')
 def js(filename):
@@ -90,15 +120,8 @@ def dmd_api(gtin):
     if not gtin.isnumeric() or len(gtin) not in (13, 14):
         return make_error("Error: Submit a 13 or 14 digit numeric GTIN")
 
-    # Build candidate GTINs to try (barcode data sometimes has an extra
-    # or missing leading zero depending on encoding)
-    candidates = [gtin]
-    if len(gtin) == 13:
-        candidates.append("0" + gtin)
-    elif len(gtin) == 14:
-        candidates.append(gtin[1:])
-
     # Make database request
+    candidates = gtin_candidates(gtin)
     try:
         result = find_with_fallback(
             dmd_collection, "gtin", candidates, {"gtin": 0, "_id": 0})
@@ -120,18 +143,8 @@ def fda_api(ndc):
     if not ndc.isnumeric() or len(ndc) not in (10, 11):
         return make_error("Error: Submit a 10 or 11 digit numeric NDC")
 
-    # Build candidate NDCs to try. A 10-digit NDC is missing the leading
-    # zero from one of its three segments, so try inserting it in the
-    # first or sixth position; an 11-digit NDC starting with "0" may
-    # just need that leading zero stripped.
-    candidates = [ndc]
-    if len(ndc) == 10:
-        candidates.append(insert_zero(ndc, 1))
-        candidates.append(insert_zero(ndc, 6))
-    elif len(ndc) == 11 and ndc[0] == "0":
-        candidates.append(ndc[1:])
-
     # Make database request
+    candidates = ndc_candidates(ndc)
     try:
         result = find_with_fallback(
             fda_collection, "package_ndc", candidates,
@@ -162,8 +175,9 @@ def error404(error):
     return make_response(None, f"Error: {str(error)}")
 
 
-# Heroku environment
-if os.environ.get('APP_LOCATION') == 'heroku':
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-else:
-    app.run(host='localhost', port=8080, debug=True)
+if __name__ == '__main__':
+    # Heroku environment
+    if os.environ.get('APP_LOCATION') == 'heroku':
+        app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    else:
+        app.run(host='localhost', port=8080, debug=True)
