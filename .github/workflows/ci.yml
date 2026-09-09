@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: ampoule-api/.python-version
+
+      - name: Install dependencies
+        working-directory: ampoule-api
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (syntax errors and pyflakes checks only)
+        run: flake8 --select=E9,F --exclude=.git,__pycache__ .
+
+      - name: Run tests
+        working-directory: ampoule-api
+        run: pytest -v

@@ -9,7 +9,6 @@ scanned from a barcode without having to guess where the hyphens go
 """
 
 import json
-import string
 
 
 # Filename constants (modify as needed)

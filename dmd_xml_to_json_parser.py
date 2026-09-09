@@ -94,9 +94,9 @@ with open(GTIN_INPUT) as gtin_file:
         # Get GTIN and remove duplicate GTINs for this item
         all_gtins = [gtin_element.firstChild.data for gtin_element in item.getElementsByTagName("GTIN")]
         gtins = []
-        for item in all_gtins:
-            if item not in gtins:
-                gtins.append(item)
+        for gtin in all_gtins:
+            if gtin not in gtins:
+                gtins.append(gtin)
 
         # Save this relationship to dict (key: AMPPID, value: List of GTINs)
         for gtin in gtins:
@@ -160,13 +160,13 @@ with open(AMPP_INPUT) as ampp_file:
         # Set strength
         try:
             strength = strength_string[:unit_start_index].strip("()")
-        except Exception as e:
+        except Exception:
             strength = ""
 
         # Set units
         try:
             units = strength_string[unit_start_index:].strip("()")
-        except Exception as e:
+        except Exception:
             units = ""
 
         # Split at last closing parenthesis - after this is quantity and type
@@ -177,7 +177,7 @@ with open(AMPP_INPUT) as ampp_file:
             quantity = last_section.split()[0]
             if not quantity.isnumeric():
                 raise TypeError
-        except Exception as e:
+        except Exception:
             quantity = ""
         try:
             # Get some common types first if they appear in the data
@@ -192,7 +192,7 @@ with open(AMPP_INPUT) as ampp_file:
                 type = last_section.split()[1]
             if type in ["g", "gram", "ml", "dose", "unit"] or not type.isalpha():
                 raise TypeError
-        except Exception as e:
+        except Exception:
             type = ""
 
         output = { 'name' : name, 'strength' : strength, 'units' : units, 'type' : type, 'quantity' : quantity }
