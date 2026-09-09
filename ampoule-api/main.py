@@ -1,8 +1,8 @@
 """Ampoule drug data API: Get drug data for a submitted Global Trade Identification Number.
 
-UK: Submit a GET request to '/api/dmd/gtin/<GTIN>', where <GTIN> is a 13 or 14 digit Global Trade Identification Number (GTIN). 
+UK: Submit a GET request to '/api/dmd/gtin/<GTIN>', where <GTIN> is a 13 or 14 digit Global Trade Identification Number (GTIN).
 
-USA: Submit a GET request to '/api/fda/ndc/<NDC>', where <NDC> is a dehyphenated National Drug Code (NDC). 
+USA: Submit a GET request to '/api/fda/ndc/<NDC>', where <NDC> is a dehyphenated National Drug Code (NDC).
 
 This API queries a MongoDB database that uses modified data from the Dictionary of Medicines and Devices
 (published by NHS Digital and available under an Open Government licence) and the Food and Drug Administration (FDA)
@@ -14,17 +14,20 @@ The API returns a JSON object including the name, strength, units, type and quan
 
 
 import os
+import logging
 import pymongo
-from bottle import Bottle, install, route, request, get, post, template, redirect, response, static_file, error, run
+from bottle import Bottle, static_file
 from bson.json_util import dumps
 import json
-import dns
-from datetime import datetime
-import hashlib
-import markdown
 
 
-MONGODB_URI = "mongodb+srv://..."
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+MONGODB_URI = os.environ.get("MONGODB_URI")
+if not MONGODB_URI:
+    raise RuntimeError("MONGODB_URI environment variable must be set")
 
 
 # MongoDB connection
@@ -59,6 +62,20 @@ def make_error(message):
     return make_response(None, message, status="fail", error=True)
 
 
+def find_with_fallback(collection, field, candidates, projection):
+    """Try each candidate value in turn and return the first match found, or None."""
+    for candidate in candidates:
+        query = collection.find_one({field: candidate}, projection)
+        if query:
+            return json.loads(dumps(query))
+    return None
+
+
+def insert_zero(value, pos):
+    """Insert a '0' immediately before the 1-indexed position `pos`."""
+    return value[:pos - 1] + "0" + value[pos - 1:]
+
+
 # Static javascript
 @app.get('/js/<filename>')
 def js(filename):
@@ -70,93 +87,63 @@ def js(filename):
 def dmd_api(gtin):
     """Accept GTIN and return corresponding drug data."""
     # Check valid input
-    if not gtin.isnumeric():
+    if not gtin.isnumeric() or len(gtin) not in (13, 14):
         return make_error("Error: Submit a 13 or 14 digit numeric GTIN")
-    elif len(gtin) != 13 and len(gtin) != 14:
-        return make_error("Error: Submit a 13 or 14 digit numeric GTIN")
+
+    # Build candidate GTINs to try (barcode data sometimes has an extra
+    # or missing leading zero depending on encoding)
+    candidates = [gtin]
+    if len(gtin) == 13:
+        candidates.append("0" + gtin)
+    elif len(gtin) == 14:
+        candidates.append(gtin[1:])
+
     # Make database request
     try:
-        query = dmd_collection.find_one({"gtin": gtin}, {"gtin": 0, "_id": 0})
-        result = json.loads(dumps(query))
-    except Exception as error:
-        return make_error(f"Error: {str(error)}")
-    # If no result, check equivalant GTIN
-    if not result:
-        # If 13-digit GTIN, try prefixing "0"
-        if len(gtin) == 13:
-            new_gtin = "0" + gtin
-            try:
-                query = dmd_collection.find_one(
-                    {"gtin": new_gtin}, {"gtin": 0, "_id": 0})
-                result = json.loads(dumps(query))
-            except Exception as error:
-                return make_error(f"Error: {str(error)}")
-        # If 14-digit GTIN, try without first digit
-        elif len(gtin) == 14:
-            new_gtin = gtin[1:]
-            try:
-                query = dmd_collection.find_one(
-                    {"gtin": new_gtin}, {"gtin": 0, "_id": 0})
-                result = json.loads(dumps(query))
-            except Exception as error:
-                return make_error(f"Error: {str(error)}")
+        result = find_with_fallback(
+            dmd_collection, "gtin", candidates, {"gtin": 0, "_id": 0})
+    except Exception:
+        logger.exception("Database error looking up GTIN %s", gtin)
+        return make_error("Error: Unable to process request at this time")
+
     # Return data
     if result:
-        # Get AMPP object
-        ampp = result["ampp"]
-        return make_response(ampp, "Success")
-    else:
-        return make_error("Error: No drug data found for that GTIN")
-
+        return make_response(result["ampp"], "Success")
+    return make_error("Error: No drug data found for that GTIN")
 
 
 # New API endpoint - FDA (USA)
 @app.get('/api/fda/ndc/<ndc>')
 def fda_api(ndc):
-    def insertZero(str, pos):
-        return str[:pos-1] + "0" + str[pos-1:]
-    # 10-digit NDC - if unsuccessful try inserting zero in first or sixth position
+    """Accept NDC and return corresponding drug data."""
     # Check valid input
-    if not ndc.isnumeric():
+    if not ndc.isnumeric() or len(ndc) not in (10, 11):
         return make_error("Error: Submit a 10 or 11 digit numeric NDC")
-    elif len(ndc) != 10 and len(ndc) != 11:
-        return make_error("Error: Submit a 10 or 11 digit numeric NDC")
+
+    # Build candidate NDCs to try. A 10-digit NDC is missing the leading
+    # zero from one of its three segments, so try inserting it in the
+    # first or sixth position; an 11-digit NDC starting with "0" may
+    # just need that leading zero stripped.
+    candidates = [ndc]
+    if len(ndc) == 10:
+        candidates.append(insert_zero(ndc, 1))
+        candidates.append(insert_zero(ndc, 6))
+    elif len(ndc) == 11 and ndc[0] == "0":
+        candidates.append(ndc[1:])
+
     # Make database request
     try:
-        query = fda_collection.find_one({"package_ndc": ndc}, {"base_ndc": 0,"package_ndc": 0, "_id": 0})
-        result = json.loads(dumps(query))
-    except Exception as error:
-        return make_error(f"Error: {str(error)}")
-    # If no result, check equivalant GTIN
-    if not result:
-        # If 13-digit GTIN, try prefixing "0"
-        if len(ndc) == 10:
-            new_ndc = insertZero(ndc, 0)
-            try:
-                query = fda_collection.find_one({"package_ndc": new_ndc}, {"base_ndc": 0,"package_ndc": 0, "_id": 0})
-                result = json.loads(dumps(query))
-            except Exception as error:
-                return make_error(f"Error: {str(error)}")
-            if not result:
-                try:
-                    new_ndc = insertZero(ndc, 6)
-                    query = fda_collection.find_one({"package_ndc": new_ndc}, {"base_ndc": 0,"package_ndc": 0, "_id": 0})
-                    result = json.loads(dumps(query))
-                except Exception as error:
-                    return make_error(f"Error: {str(error)}")
-        # If 14-digit GTIN, try without first digit
-    elif len(ndc) == 11 and ndc[0] == "0":
-            new_ndc = ndc[1:]
-            try:
-                query = fda_collection.find_one({"package_ndc": new_ndc}, {"base_ndc": 0,"package_ndc": 0, "_id": 0})
-                result = json.loads(dumps(query))
-            except Exception as error:
-                return make_error(f"Error: {str(error)}")
+        result = find_with_fallback(
+            fda_collection, "package_ndc", candidates,
+            {"base_ndc": 0, "package_ndc": 0, "_id": 0})
+    except Exception:
+        logger.exception("Database error looking up NDC %s", ndc)
+        return make_error("Error: Unable to process request at this time")
+
     # Return data
     if result:
         return make_response(result, "Success")
-    else:
-        return make_error("Error: No drug data found for that GTIN")
+    return make_error("Error: No drug data found for that NDC")
 
 
 @app.get('/test')
@@ -169,7 +156,7 @@ def handle_root_url():
     return make_response(None, r"Ampoule drug data API. Submit a GET request to '/api/dmd/gtin/GTIN or '/api/fda/ndc/NDC', where GTIN is a Global Trade Identification Number and NDC is a National Drug Code. This API uses adapted data from the Dictionary of Medicines and Devices (published by NHS Digital and available under an Open Government licence) and data from the Food and Drug Administration (FDA).  Returns a JSON object including the name, strength, units, type and quantity of the drug, if available.")
 
 
-@error(404)
+@app.error(404)
 def error404(error):
     """404 response."""
     return make_response(None, f"Error: {str(error)}")

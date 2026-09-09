@@ -94,9 +94,9 @@ with open(GTIN_INPUT) as gtin_file:
         # Get GTIN and remove duplicate GTINs for this item
         all_gtins = [gtin_element.firstChild.data for gtin_element in item.getElementsByTagName("GTIN")]
         gtins = []
-        for item in all_gtins:
-            if item not in gtins:
-                gtins.append(item)
+        for gtin in all_gtins:
+            if gtin not in gtins:
+                gtins.append(gtin)
 
         # Save this relationship to dict (key: AMPPID, value: List of GTINs)
         for gtin in gtins:
